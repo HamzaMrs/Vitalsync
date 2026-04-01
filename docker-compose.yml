@@ -1,0 +1,88 @@
+# ============================================================================
+# Docker Compose - VitalSync
+# Orchestre les 3 services : backend, frontend, database
+# ============================================================================
+
+version: "3.8"
+
+services:
+  # ---- Base de données PostgreSQL ----
+  database:
+    image: postgres:16-alpine
+    container_name: vitalsync-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Volume persistant pour les données PostgreSQL
+      # Sans ce volume, toutes les données seraient perdues à chaque
+      # docker-compose down car le filesystem du conteneur est éphémère
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - vitalsync-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- Back-end API Node.js/Express ----
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vitalsync-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - vitalsync-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---- Front-end Nginx ----
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vitalsync-front
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - vitalsync-network
+
+# ---- Réseau personnalisé (bridge) ----
+# Un réseau bridge dédié isole les conteneurs VitalSync des autres conteneurs
+# sur la machine. Les conteneurs peuvent communiquer entre eux via leur nom
+# de service (DNS interne Docker), mais sont isolés du réseau par défaut.
+# Cela améliore la sécurité en limitant la surface d'attaque réseau.
+networks:
+  vitalsync-network:
+    driver: bridge
+    name: vitalsync-network
+
+# ---- Volume persistant ----
+# Stocke les données PostgreSQL de manière persistante.
+# Sans ce volume, un docker-compose down détruirait toutes les données
+# de la base (utilisateurs, activités, etc.) de manière irréversible.
+volumes:
+  pgdata:
+    driver: local
+    name: vitalsync-pgdata
