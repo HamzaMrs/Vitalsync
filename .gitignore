@@ -1,0 +1,49 @@
+# ============================================================
+# .gitignore - VitalSync
+# ============================================================
+
+# -- Dépendances Node.js --
+# Les dépendances sont installées via npm install et ne doivent
+# pas être versionnées car elles sont volumineuses et régénérables
+node_modules/
+
+# -- Fichiers d'environnement --
+# Contiennent des secrets (mots de passe, tokens) qui ne doivent
+# jamais être exposés dans un dépôt, même privé
+.env
+.env.local
+.env.*.local
+
+# -- Logs --
+# Fichiers de logs générés à l'exécution, spécifiques à chaque
+# environnement et non pertinents pour le versionnement
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# -- Répertoires de build --
+# Artefacts de compilation générés automatiquement
+dist/
+build/
+coverage/
+
+# -- IDE et éditeurs --
+# Fichiers de configuration spécifiques à chaque développeur,
+# les préférences IDE sont personnelles
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# -- Docker --
+# Les données de volumes Docker sont locales et ne doivent pas
+# être versionnées
+docker-data/
+
+# -- Système --
+# Fichiers système macOS/Windows inutiles dans le dépôt
+Thumbs.db
+.DS_Store
