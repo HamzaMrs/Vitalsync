@@ -217,6 +217,3 @@ kubectl apply -f k8s/
 kubectl get all -n vitalsync
 ```
 
-## Licence
-
-Projet réalisé dans le cadre de l'épreuve E6 – EFREI 2026.
