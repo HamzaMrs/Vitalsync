@@ -1,6 +1,6 @@
-# 🏥 VitalSync - Suivi Médical et Sportif
+# VitalSync - Suivi Médical et Sportif
 
-## 📋 Description du projet
+## Description du projet
 
 VitalSync est une application de suivi médical et sportif développée par une startup éponyme. L'application permet aux utilisateurs de suivre leurs activités physiques et leurs données de santé via une interface web connectée à une API REST.
 
@@ -19,31 +19,31 @@ L'application est composée de 3 services conteneurisés :
 ```mermaid
 graph TB
     subgraph "Utilisateur"
-        U[🌐 Navigateur Web]
+        U[Navigateur Web]
     end
 
     subgraph "Docker Compose / Kubernetes"
         subgraph "Frontend - Nginx :80"
-            F[📄 index.html]
-            NX[⚙️ nginx.conf<br/>proxy_pass /api/]
+            F[index.html]
+            NX[nginx.conf<br/>proxy_pass /api/]
         end
 
         subgraph "Backend - Node.js :3000"
-            API[🔧 Express API]
+            API[Express API]
             H["/health"]
             A["/api/activities"]
         end
 
         subgraph "Database - PostgreSQL :5432"
-            DB[(💾 PostgreSQL)]
-            VOL[📦 Volume pgdata]
+            DB[(PostgreSQL)]
+            VOL[Volume pgdata]
         end
     end
 
     subgraph "CI/CD - GitHub Actions"
-        CI[🔍 Lint & Tests]
-        BUILD[🐳 Build Docker]
-        DEPLOY[🚀 Deploy Staging]
+        CI[Lint and Tests]
+        BUILD[Build Docker]
+        DEPLOY[Deploy Staging]
     end
 
     U -->|HTTP :80| F
@@ -54,7 +54,7 @@ graph TB
     DB --- VOL
 
     CI --> BUILD --> DEPLOY
-    
+
     style F fill:#4CAF50,color:white
     style API fill:#2196F3,color:white
     style DB fill:#FF9800,color:white
@@ -63,17 +63,17 @@ graph TB
     style DEPLOY fill:#9C27B0,color:white
 ```
 
-## 🛠️ Prérequis
+## Prérequis
 
 | Outil | Version minimale | Vérification |
-|-------|-----------------|--------------|
+|-------|-----------------|--------------:|
 | **Docker** | 24.0+ | `docker --version` |
 | **Docker Compose** | 2.20+ | `docker compose version` |
 | **Git** | 2.40+ | `git --version` |
 | **Node.js** *(optionnel, pour dev local)* | 20.x LTS | `node --version` |
 | **npm** *(optionnel, pour dev local)* | 9.x+ | `npm --version` |
 
-## 🚀 Lancer l'application avec Docker Compose
+## Lancer l'application avec Docker Compose
 
 ### 1. Cloner le dépôt
 
@@ -117,33 +117,33 @@ docker compose logs -f
 # Arrêter sans supprimer les données
 docker compose down
 
-# Arrêter ET supprimer les volumes (⚠️ perte de données)
+# Arrêter ET supprimer les volumes (attention : perte de données)
 docker compose down -v
 ```
 
-## 🔄 Pipeline CI/CD
+## Pipeline CI/CD
 
 La pipeline CI/CD est configurée avec **GitHub Actions** et se déclenche automatiquement :
 
 | Déclencheur | Étapes exécutées |
-|-------------|-----------------|
-| Push sur `develop` | Lint → Tests → Build Docker → Push GHCR → Deploy Staging |
-| PR vers `main` | Lint → Tests (pas de déploiement) |
+|-------------|-----------------:|
+| Push sur `develop` | Lint -> Tests -> Build Docker -> Push GHCR -> Deploy Staging |
+| PR vers `main` | Lint -> Tests (pas de déploiement) |
 
 ### Étapes de la pipeline
 
 ```mermaid
 graph LR
-    A[📥 Push / PR] --> B[🔍 Lint ESLint]
-    B --> C[🧪 Tests Jest]
+    A[Push ou PR] --> B[Lint ESLint]
+    B --> C[Tests Jest]
     C --> D{Push sur develop ?}
-    D -->|Oui| E[🐳 Build Images]
-    D -->|Non| F[✅ Fin]
-    E --> G[📤 Push GHCR]
-    G --> H[🚀 Deploy Staging]
-    H --> I[❤️ Health Check]
-    I -->|✅ OK| J[✅ Succès]
-    I -->|❌ Échec| K[❌ Pipeline échoue]
+    D -->|Oui| E[Build Images]
+    D -->|Non| F[Fin]
+    E --> G[Push GHCR]
+    G --> H[Deploy Staging]
+    H --> I[Health Check]
+    I -->|OK| J[Succes]
+    I -->|Echec| K[Pipeline echoue]
 
     style B fill:#FF9800,color:white
     style C fill:#4CAF50,color:white
@@ -156,7 +156,7 @@ graph LR
 
 **Justification** : GHCR est intégré nativement à GitHub, ne nécessite pas de compte externe (Docker Hub), et les images sont associées au dépôt. L'authentification utilise le `GITHUB_TOKEN` automatique, évitant la gestion de tokens supplémentaires.
 
-## 📁 Structure du projet
+## Structure du projet
 
 ```
 vitalsync/
@@ -176,7 +176,7 @@ vitalsync/
 │   ├── nginx.conf             # Configuration Nginx + proxy_pass
 │   └── Dockerfile             # Image Nginx Alpine
 ├── k8s/
-│   ├── backend-deployment.yaml  # Deployment K8s (2 réplicas)
+│   ├── backend-deployment.yaml  # Deployment K8s (2 replicas)
 │   ├── backend-service.yaml     # Service ClusterIP
 │   ├── frontend-service.yaml    # Service ClusterIP frontend
 │   ├── ingress.yaml             # Ingress Nginx
@@ -187,11 +187,11 @@ vitalsync/
 └── README.md                  # Ce fichier
 ```
 
-## 🔧 Choix techniques et justifications
+## Choix techniques et justifications
 
 | Choix | Justification |
 |-------|--------------|
-| **GitHub** (vs GitLab) | Écosystème Actions intégré, GHCR natif, large communauté, intégration directe avec les PR |
+| **GitHub** (vs GitLab) | Ecosystème Actions intégré, GHCR natif, large communauté, intégration directe avec les PR |
 | **GitHub Actions** (vs GitLab CI) | Natif à GitHub, gratuit pour les dépôts publics, marketplace d'actions réutilisables |
 | **Node.js 20 Alpine** | Version LTS stable, image Alpine ~5x plus légère que l'image standard (~180 Mo vs ~900 Mo) |
 | **Nginx stable-alpine** | Serveur web performant et léger, proxy inverse intégré, image ~25 Mo |
@@ -202,7 +202,7 @@ vitalsync/
 | **Conventional Commits** | Historique lisible, génération automatique de changelogs possible |
 | **Kubernetes Ingress** (vs NodePort) | URL standard HTTP/HTTPS, routing par path, support TLS, point d'entrée unique |
 
-## 🏗️ Kubernetes
+## Kubernetes
 
 Les manifestes Kubernetes sont dans le dossier `k8s/`. Pour les appliquer :
 
@@ -217,6 +217,6 @@ kubectl apply -f k8s/
 kubectl get all -n vitalsync
 ```
 
-## 📄 Licence
+## Licence
 
 Projet réalisé dans le cadre de l'épreuve E6 – EFREI 2026.
