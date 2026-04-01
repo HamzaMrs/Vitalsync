@@ -78,7 +78,7 @@ graph TB
 ### 1. Cloner le dépôt
 
 ```bash
-git clone https://github.com/<votre-username>/vitalsync.git
+git clone https://github.com/HamzaMrs/Vitalsync.git
 cd vitalsync
 ```
 
