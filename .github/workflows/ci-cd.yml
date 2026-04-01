@@ -1,0 +1,175 @@
+# ============================================================================
+# Pipeline CI/CD - VitalSync
+# ============================================================================
+# Déclencheurs :
+# - Push sur develop : lance la pipeline complète (lint, test, build, deploy staging)
+# - Pull Request vers main : lance lint + tests + build (pas de déploiement)
+#   Cela garantit que seul du code validé arrive sur main.
+# ============================================================================
+
+name: VitalSync CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/vitalsync-api
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/vitalsync-front
+
+jobs:
+  # ================================================================
+  # ÉTAPE 1 : Lint & Tests
+  # ================================================================
+  # Cette étape vérifie la qualité du code (ESLint) et exécute les
+  # tests unitaires (Jest). Si le lint ou les tests échouent, la
+  # pipeline s'arrête immédiatement pour éviter de construire et
+  # déployer du code défectueux.
+  # ================================================================
+  lint-and-test:
+    name: "🔍 Lint & Tests"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout du code source
+        uses: actions/checkout@v4
+
+      - name: Configuration de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ./backend/package-lock.json
+
+      - name: Installation des dépendances
+        run: npm install
+
+      - name: Exécution du linter ESLint
+        run: npm run lint
+
+      - name: Exécution des tests unitaires Jest
+        run: npm test
+
+  # ================================================================
+  # ÉTAPE 2 : Build Docker & Push vers le registry
+  # ================================================================
+  # Construit les images Docker du backend et du frontend, les tague
+  # avec le SHA du commit (et non "latest") pour garantir la
+  # traçabilité. Chaque image est associée à un commit précis,
+  # ce qui permet de :
+  # - Identifier exactement quelle version du code tourne
+  # - Faire un rollback vers une version spécifique
+  # - Éviter les ambiguïtés du tag "latest" qui peut pointer vers
+  #   n'importe quelle version
+  # ================================================================
+  build-and-push:
+    name: "🐳 Build & Push Docker"
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout du code source
+        uses: actions/checkout@v4
+
+      - name: Connexion au GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push de l'image backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.BACKEND_IMAGE }}:latest
+
+      - name: Build & Push de l'image frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ env.FRONTEND_IMAGE }}:latest
+
+  # ================================================================
+  # ÉTAPE 3 : Déploiement staging
+  # ================================================================
+  # Déploie l'application sur un environnement de staging via
+  # docker-compose. Après le déploiement, un health check vérifie
+  # que l'API répond correctement. Si le health check échoue,
+  # la pipeline entière échoue, empêchant tout déploiement
+  # défectueux de passer inaperçu.
+  # ================================================================
+  deploy-staging:
+    name: "🚀 Deploy Staging"
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout du code source
+        uses: actions/checkout@v4
+
+      - name: Création du fichier .env pour staging
+        run: |
+          cat > .env << EOF
+          POSTGRES_DB=vitalsync_staging
+          POSTGRES_USER=staging_user
+          POSTGRES_PASSWORD=${{ secrets.STAGING_DB_PASSWORD }}
+          NODE_ENV=production
+          EOF
+
+      - name: Démarrage des services avec Docker Compose
+        run: |
+          docker compose up -d --build
+          echo "⏳ Attente du démarrage des services..."
+          sleep 15
+
+      - name: Vérification de santé (Health Check)
+        run: |
+          echo "🔍 Vérification du health check..."
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || echo "000")
+            
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Health check réussi ! (HTTP $HTTP_STATUS)"
+              RESPONSE=$(curl -s http://localhost:3000/health)
+              echo "📋 Réponse : $RESPONSE"
+              exit 0
+            fi
+            
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "⏳ Tentative $RETRY_COUNT/$MAX_RETRIES - HTTP $HTTP_STATUS - Nouvelle tentative dans 5s..."
+            sleep 5
+          done
+          
+          echo "❌ Health check échoué après $MAX_RETRIES tentatives !"
+          echo "📋 Logs du backend :"
+          docker compose logs backend
+          exit 1
+
+      - name: Nettoyage en cas d'échec
+        if: failure()
+        run: docker compose down -v

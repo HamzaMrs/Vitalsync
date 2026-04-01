@@ -1,0 +1,29 @@
+# ============================================================================
+# Service - VitalSync Backend (ClusterIP)
+# ============================================================================
+# Un Service Kubernetes de type ClusterIP expose le back-end en interne
+# au cluster. Il fournit :
+# - Un DNS stable (vitalsync-backend-svc) pour que les autres pods
+#   puissent accéder au backend sans connaître les IPs des pods
+# - Un load balancing automatique entre les 2 réplicas du backend
+# - ClusterIP est choisi car le backend ne doit pas être exposé
+#   directement à l'extérieur (c'est le frontend/Ingress qui y accède)
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: vitalsync-backend-svc
+  namespace: vitalsync
+  labels:
+    app: vitalsync
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: vitalsync
+    component: backend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http

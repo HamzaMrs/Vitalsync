@@ -1,0 +1,43 @@
+# ============================================================================
+# Ingress - VitalSync Frontend
+# ============================================================================
+# L'Ingress est choisi plutôt que NodePort ou LoadBalancer car :
+# - NodePort expose un port aléatoire (30000-32767) sur chaque nœud,
+#   ce qui n'est pas adapté à la production (URL non standard)
+# - LoadBalancer crée un load balancer cloud externe par service,
+#   ce qui est coûteux si on a plusieurs services à exposer
+# - Ingress permet de router le trafic HTTP/HTTPS via un seul point
+#   d'entrée, avec des règles basées sur le hostname ou le path,
+#   et supporte nativement les certificats TLS
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vitalsync-ingress
+  namespace: vitalsync
+  labels:
+    app: vitalsync
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: vitalsync.local
+      http:
+        paths:
+          # Le frontend sert les fichiers statiques
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vitalsync-frontend-svc
+                port:
+                  number: 80
+          # Les requêtes API sont routées vers le backend
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: vitalsync-backend-svc
+                port:
+                  number: 3000

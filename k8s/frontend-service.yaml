@@ -1,0 +1,23 @@
+# ============================================================================
+# Service - VitalSync Frontend (ClusterIP)
+# ============================================================================
+# Service interne pour le frontend, utilisé par l'Ingress
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: vitalsync-frontend-svc
+  namespace: vitalsync
+  labels:
+    app: vitalsync
+    component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: vitalsync
+    component: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http

@@ -1,0 +1,31 @@
+# Dépendances Node.js - ne doivent pas être copiées dans l'image,
+# elles sont installées via npm install dans le Dockerfile
+node_modules
+
+# Fichiers de logs générés à l'exécution
+*.log
+npm-debug.log*
+
+# Fichiers d'environnement contenant des secrets
+.env
+.env.local
+.env.*.local
+
+# Fichiers de configuration IDE/éditeur
+.vscode
+.idea
+*.swp
+*.swo
+
+# Fichiers Git - inutiles dans l'image Docker
+.git
+.gitignore
+
+# Documentation - n'a pas sa place dans l'image de production
+README.md
+docs/
+
+# Dockerfile et docker-compose - éviter la récursion
+Dockerfile
+docker-compose.yml
+.dockerignore
