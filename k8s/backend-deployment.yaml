@@ -1,0 +1,80 @@
+# ============================================================================
+# Deployment - VitalSync Backend
+# ============================================================================
+# Déploie 2 réplicas du back-end pour assurer la haute disponibilité.
+# - 2 réplicas (et non 1) : garantit qu'un pod reste disponible même si
+#   l'autre redémarre ou tombe en panne (zero downtime).
+# - 2 réplicas (et non 3) : pour une application startup de cette taille,
+#   3 réplicas consommeraient des ressources inutilement. 2 est le minimum
+#   pour la haute disponibilité tout en restant économique.
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vitalsync-backend
+  namespace: vitalsync
+  labels:
+    app: vitalsync
+    component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vitalsync
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: vitalsync
+        component: backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/vitalsync/vitalsync-api:latest
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          # Variables d'environnement - le mot de passe DB est injecté
+          # depuis un Secret Kubernetes via env.valueFrom.secretKeyRef
+          # pour ne jamais exposer de secrets en clair dans les manifestes
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: POSTGRES_DB
+              value: "vitalsync_db"
+            - name: POSTGRES_USER
+              value: "vitalsync_user"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vitalsync-db-secret
+                  key: postgres-password
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@vitalsync-db:5432/$(POSTGRES_DB)"
+          # Liveness Probe - vérifie que le conteneur est en vie
+          # Si la probe échoue (3 échecs consécutifs), Kubernetes
+          # redémarre automatiquement le pod (self-healing)
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Readiness Probe - vérifie que le pod est prêt à recevoir du trafic
+          # Un pod non ready est retiré du Service (pas de trafic envoyé)
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
